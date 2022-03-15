@@ -1,0 +1,100 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          scout-server
+# Default-Start:     5
+# Default-Stop:      0 1 2 3 6
+# Short-Description: Scout server
+### END INIT INFO
+
+DAEMON_PATH=/www/pages/necron/Cnoda/necron
+DAEMON_NAME=`basename $DAEMON_PATH`
+DAEMON_ARGS=/www/pages/necron/Cnoda/Cnoda.json
+
+. /etc/init.d/functions
+
+test -x $DAEMON_PATH || exit 0
+
+#PATH=/sbin:/usr/sbin:/bin:/usr/bin
+#export PATH
+
+RETVAL=0
+
+function RestoringSysData {
+    mkdir /run/sys/
+    mkdir /run/sys_ex/
+    mkdir /run/update
+    mkdir /run/download
+    mkdir /run/log
+    cp -aRd /etc/necron/*.set /run/sys
+    cp -aRd /etc/necron/*.crc /run/sys
+}
+
+case "$1" in
+    start)
+        echo -n "Starting $DAEMON_NAME: "
+        ifconfig lo up
+        #$1 - mtd device num (3 - mtd3)
+        #$2 - ubi virt (0 - /dev/ubi0)
+        #$3 - ubi part, ubi volume (0 - /dev/ubi0_0)
+        #$4 - mount point (/www/pages)
+        #$5 - necron place (/usr/share/necron)
+        . /etc/init.d/necron_extract_ubifs 4 1 0 /www/pages /usr/share/necron
+        #$1 - searched var name (part)
+        #$2 - fit parts mtd(2)
+        #$3 - root parts mtd(3)
+        #$4 - rw part mtd(4)
+        . /etc/init.d/necron_update part 2 3 4 /www/pages ubi 7
+        RestoringSysData ''
+        /www/pages/necron/Cnoda/gprivate
+        su -l -c "$DAEMON_PATH $DAEMON_ARGS &"
+
+        RETVAL=$?
+        if [ $RETVAL -eq 0 ] ; then
+            echo "OK"
+            touch /var/lock/subsys/$DAEMON_NAME
+        else
+            echo "FAIL"
+        fi
+        ;;
+
+    stop)
+        echo -n "Stopping $DAEMON_NAME: "
+        count=0
+        while [ -n "`/bin/pidof $DAEMON_PATH`" -a $count -lt 10 ] ; do
+            killproc $DAEMON_PATH >& /dev/null
+            sleep 1
+            RETVAL=$?
+            if [ $RETVAL != 0 -o -n "`/bin/pidof $DAEMON_PATH`" ] ; then
+                sleep 1
+            fi
+            count=`expr $count + 1`
+        done
+        rm -f /var/lock/subsys/$DAEMON_NAME
+        if [ -n "`/bin/pidof $DAEMON_PATH`" ] ; then
+            echo "FAIL"
+        else
+            echo "OK"
+        fi
+        ;;
+
+    restart)
+        $0 stop
+        sleep 1
+        $0 start
+        ;;
+
+    status)
+        status $DAEMON_NAME
+        RETVAL=$?
+        ;;
+
+    condrestart)
+        [ -f /var/lock/subsys/$DAEMON_NAME ] && $0 restart
+        ;;
+
+    *)
+        echo "usage: $0 { start | stop | status | restart | condrestart | status }"
+        ;;
+esac
+
+exit $RETVAL

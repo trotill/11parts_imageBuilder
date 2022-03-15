@@ -1,0 +1,19 @@
+
+[Unit]
+Description=11-parts.com: A 11-parts early init script
+DefaultDependencies=no
+Conflicts=shutdown.target
+After=systemd-fsck-root.service
+Before=local-fs-pre.target local-fs.target shutdown.target
+Wants=local-fs-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh /etc/init.d/rc 11pe.start
+ExecStop/bin/sh /etc/init.d/rc 11pe.stop
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy = sysinit.target

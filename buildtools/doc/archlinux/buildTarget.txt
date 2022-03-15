@@ -1,0 +1,65 @@
+Целевая сборка
+
+Для досборок компилятор не ставить, т.к. его потом не удалить из за зависимостей. Любое использование компилятора только в SDK
+
+1.2Gb
+pacman-key --init
+pacman-key --populate archlinuxarm
+pacman -Syu --noconfirm --needed
+1.6Gb
+BASE_PACK="nodejs jsoncpp hiredis redis cpio mosquitto sysstat openvpn libfaketime libsodium which ntp usbutils busybox lsof htop ttf-roboto ttf-droid net-snmp avahi xorg-server xorg-xrandr chromium npm parted nano openssh"
+
+QT_PACK="qt5-mqtt qt5-svg qt5-charts qt5-graphicaleffects qt5-quickcontrols qt5-quickcontrols2"
+EXT_PACK="dnsmasq libmbim bridge-utils tcpdump psmisc screen ppp xl2tpd strongswan wireless_tools usb_modeswitch libnl sysstat pptpclient wpa_supplicant alsa-lib alsa-utils"
+
+pacman -S  $BASE_PACK --noconfirm --needed
+
+pacman -S  $QT_PACK --noconfirm --needed
+
+3G
+pacman -S  $EXT_PACK --noconfirm --needed
+
+3.1G
+npm config set strict-ssl false
+npm config set unsafe-perm true
+npm config set registry http://registry.npmjs.org/
+npm install -g --unsafe-perm=true --allow-root --save-dev electron@9.1.0 express@4.17.1 multiparty body-parser@1.18.2 compression@1.7.3 cookie@0.4.0 cookie-parser@1.4.3  mqtt@3.0.0 mustache@v3.0.1 nodemailer@^6.4.5 socket.io@3.0.1 strip-json-comments@v2.0.1 socketio-file-upload@0.7.3
+
+2.9G
+pacman -U /opt/additions/* --noconfirm
+2.9G
+ln -s /usr/bin/busybox /usr/bin/udhcpc
+ln -s /usr/bin/busybox /usr/bin/resize
+rm /usr/bin/ifconfig
+ln -s /usr/bin/busybox /usr/bin/ifconfig
+rm /etc/resolv.conf
+ln -s /var/run/resolv.conf /etc/resolv.conf
+rm /usr/bin/route
+ln -s /usr/bin/busybox /usr/bin/route
+Для proftpd добавить группу nogroup
+groupadd nogroup
+rm /opt/additions/ -r
+rm /var/cache/pacman/pkg/*
+rm /usr/lib/firmware/* -r
+rm /usr/lib/systemd/system/sysinit.target.wants/systemd-update-utmp.service
+rm /usr/lib/systemd/system/sysinit.target.wants/systemd-update-done.service
+systemctl disable systemd-timesyncd.service
+systemctl enable sshd
+systemctl disable systemd-resolved
+systemctl disable systemd-networkd.service
+2.5G
+//настройка redis
+systemctl disable redis
+nano /usr/lib/systemd/system/redis.service
+User=root
+Group=root
+systemctl enable redis
+chown root.root /var/lib/redis/
+//настройка redis
+//сборка node-gyp 
+pacman -S make 
++46Mb
+yarn add serialport-gsm
+yarn add electron-rebuild
+./node_modules/.bin/electron-rebuild
+//сборка node-gyp 

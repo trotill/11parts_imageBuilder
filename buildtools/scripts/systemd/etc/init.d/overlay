@@ -1,0 +1,18 @@
+#!/bin/sh
+
+install -d /run/over/etc/up
+install -d /run/over/etc/work
+
+install -d /run/over/root/up
+install -d /run/over/root/work
+
+install -d /run/over/home/up
+install -d /run/over/home/work
+
+install -d /run/over/var/up
+install -d /run/over/var/work
+
+mount -t overlay overlay -o lowerdir=/etc,upperdir=/run/over/etc/up,workdir=/run/over/etc/work /etc
+mount -t overlay overlay -o lowerdir=/root,upperdir=/run/over/root/up,workdir=/run/over/root/work /root
+mount -t overlay overlay -o lowerdir=/home,upperdir=/run/over/home/up,workdir=/run/over/home/work /home
+mount -t overlay overlay -o lowerdir=/var,upperdir=/run/over/var/up,workdir=/run/over/var/work /var

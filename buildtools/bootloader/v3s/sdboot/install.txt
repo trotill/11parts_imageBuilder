@@ -1,0 +1,1 @@
+dd if=u-boot-sunxi-with-spl.bin of=/dev/sdX bs=1024 seek=8

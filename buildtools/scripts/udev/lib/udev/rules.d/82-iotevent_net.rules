@@ -1,0 +1,7 @@
+SUBSYSTEM!="net", GOTO="iot_net_end"
+
+ACTION=="add", RUN+="srviot_events.sh net %E{SUBSYSTEM}add %k $attr{type} $attr{dev_port}"
+ACTION=="change", RUN+="srviot_events.sh net %E{SUBSYSTEM}change %k $attr{type} $attr{dev_port}"
+ACTION=="remove", RUN+="srviot_events.sh net %E{SUBSYSTEM}remove %k $attr{type} $attr{dev_port}"
+
+LABEL="iot_net_end"

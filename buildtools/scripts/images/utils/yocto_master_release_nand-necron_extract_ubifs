@@ -1,0 +1,89 @@
+#!bin/sh
+#$1 - mtd device num (3 - mtd3)
+#$2 - ubi virt (0 - /dev/ubi0)
+#$3 - ubi part, ubi volume (0 - /dev/ubi0_0)
+#$4 - mount point (/www/pages)
+#$5 - necron place (/usr/share/necron)
+
+if [ $# -ne 5 ];
+  then echo "illegal number of parameters "$#"/5"
+  exit
+fi
+
+UBI=$1
+UBI_VIRT=$2
+UBI_PART=$3
+MOUNTP=$4
+NECRON_PATH=$5
+CONFIG_PATH=/etc/necron
+SW_NAME=necron
+SW_SYS=sys
+SW_SYSEX=sys_ex
+SW_LOG=log
+SW_DOWNLOAD=download
+SW_UPDATE=update
+UBI_OPTS="-o chk_data_crc,sync"
+
+function RestoringData {
+	MOUNTP=$1
+	echo Restoring data on mtd$UBI;
+	sleep 1
+	mount -t ubifs $UBI_OPTS /dev/ubi"$UBI_VIRT"_"$UBI_PART" $MOUNTP
+	sync
+	sleep 1
+	ln -s $NECRON_PATH $MOUNTP/$SW_NAME
+	mkdir $MOUNTP/$SW_SYS
+	mkdir $MOUNTP/$SW_SYSEX
+	mkdir $MOUNTP/$SW_LOG
+	mkdir $MOUNTP/$SW_DOWNLOAD
+	mkdir $MOUNTP/$SW_UPDATE
+	if [ -f "/var/run/necron/rollOutToFactory" ]; then
+		echo "Roll out to factory, skip copy default config"
+	else
+		cho "First start, copy default config"
+		cp -aRd $CONFIG_PATH/* $MOUNTP/$SW_SYS
+	fi
+	sync
+	sleep 1
+	echo Data restored on mtd$UBI;
+}
+
+echo detach ubi $UBI!!!;
+umount $MOUNTP
+#ubidetach -d 0 > /dev/zero
+#ubidetach -d 1 > /dev/zero
+#ubidetach -d 2 > /dev/zero
+#ubidetach -d 3 > /dev/zero
+
+ubidetach -m $UBI;
+ubiattach /dev/ubi_ctrl -m $UBI;
+sleep 1
+if [ -a "/dev/ubi"$UBI_VIRT"_"$UBI_PART ]
+then
+	echo UBI attached;
+	echo mount mtd$UBI to $MOUNTP;
+	mount -t ubifs $UBI_OPTS /dev/ubi"$UBI_VIRT"_"$UBI_PART" $MOUNTP
+	echo Success!!!;
+else
+	echo Not found UBI volume;
+	echo Format UBI for mtd$UBI;
+	ubidetach -m $UBI;
+	ubiformat -y /dev/mtd$UBI;
+	ubiattach /dev/ubi_ctrl -m $UBI;
+	sleep 1
+	echo Make volume for mtd$UBI;
+	ubimkvol /dev/ubi"$UBI_VIRT" -N mtd$UBI -m
+	if [ -a "/dev/ubi"$UBI_VIRT"_"$UBI_PART ];
+		then
+		 echo Created volume mtd"$UBI", try mount;
+		 echo mount mtd$UBI to $MOUNTP;
+		 
+	  	 #mount -t ubifs $UBI_OPTS /dev/ubi"$UBI_VIRT"_"$UBI_PART" $MOUNTP;
+	  	 RestoringData $MOUNTP;
+	  	else
+	  	 echo "Not found "/dev/ubi"$UBI_VIRT"_"$UBI_PART"
+	  	 echo "Storage is broken!!!"
+	fi
+fi
+
+

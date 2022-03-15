@@ -1,0 +1,20 @@
+
+[Unit]
+SourcePath=/etc/systemd/system/rc11p.service
+Description=11-parts.com: A 11-parts init script
+
+[Service]
+Type=forking
+Restart=no
+TimeoutSec=1min
+IgnoreSIGPIPE=no
+KillMode=process
+GuessMainPID=no
+RemainAfterExit=yes
+ExecStart=/bin/sh /etc/init.d/rc 11p.start
+ExecStop=/bin/sh /etc/init.d/rc 11p.stop
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy = multi-user.target

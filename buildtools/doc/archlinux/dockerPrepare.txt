@@ -1,0 +1,4 @@
+docker x86 для запуска qemu и кросскомпиляции 
+
+pacman -Syu --noconfirm
+pacman -S git cmake autoconf automake grep base-devel unzip help2man wget ncurses rsync python3 python qemu qemu-arch-extra inetutils bc sudo --noconfirm --needed

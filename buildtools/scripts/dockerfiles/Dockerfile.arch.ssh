@@ -1,0 +1,35 @@
+FROM archlinux:latest
+
+#ENV DEBIAN_FRONTENV noninteractive
+
+RUN pacman -Syu --noconfirm --needed
+#RUN pacman -Sy --noconfirm --needed
+
+# Required Packages for the Host Development System
+# http://www.yoctoproject.org/docs/latest/mega-manual/mega-manual.html#required-packages-for-the-host-development-system
+
+ENV TZ=Europe/Moscow
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+RUN pacman -S git cmake autoconf automake grep base-devel unzip help2man wget ncurses rsync python3 python qemu qemu-arch-extra inetutils bc sudo nano python2 uboot-tools swig dtc lz4 cpio flex bison openssh tar --noconfirm --needed
+
+RUN echo "build ALL=(ALL) NOPASSWD: ALL" | tee -a /etc/sudoers
+RUN echo "necron ALL=(ALL) NOPASSWD: ALL" | tee -a /etc/sudoers
+
+RUN ( \
+    echo 'LogLevel DEBUG2'; \
+    echo 'PermitRootLogin yes'; \
+    echo 'PasswordAuthentication yes'; \
+    echo 'Subsystem sftp internal-sftp'; \
+    #echo 'Subsystem sftp /usr/lib/openssh/sftp-server'; \
+  ) > /etc/ssh/sshd_config_test_clion \
+  && mkdir /run/sshd
+
+RUN /usr/sbin/ssh-keygen -A
+RUN yes root | passwd root
+
+RUN useradd -m build \
+  && yes build | passwd build
+
+CMD ["/usr/sbin/sshd", "-D", "-e", "-f", "/etc/ssh/sshd_config_test_clion"]
+# EOF

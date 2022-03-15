@@ -1,0 +1,57 @@
+distcc
+
+Кросскомпилятор которым собирался дистриб archlinux
+https://archlinuxarm.org/wiki/Distcc_Cross-Compiling
+На этом же сайте можно скачать собранные кросс-компиляторы
+Архив кросс-компиляторов archlinux
+https://archlinuxarm.org/builder/xtools/
+ ARMv5te soft-float - без префикса
+ ARMv6l hard-float - 6h
+ ARMv7l hard-float - 7h
+ ARMv8 - 8
+ 
+Сборка distcc
+https://archlinuxarm.org/wiki/Distcc_Cross-Compiling
+На этом же сайте можно скачать собранные кросс-компиляторы
+docker pull archlinux
+pacman -Syu
+pacman -S git autoconf automake grep base-devel unzip help2man wget ncurses rsync python3 python
+git clone https://github.com/crosstool-ng/crosstool-ng.git
+cd crosstool-ng/
+./bootstrap 
+./configure --prefix=/home/your_user/cross 
+make 
+make install
+
+cd /home/your_user/cross/bin 
+wget http://archlinuxarm.org/builder/xtools/xtools-dotconfig-[v5|v6|v7|v8] -O .config
+cd /home/your_user/cross/bin 
+./ct-ng build
+
+Патчи
+Что бы не ругался при сборке на terminfo
+cp /usr/share/terminfo/n/northstar /usr/share/terminfo/n/no
+
+Найти и заменить в cross/arm/share/crosstool-ng/scripts/crosstool-NG.sh создание папок
+CT_DoLog EXTRA "CT_TARBALLS_DIR ${CT_TARBALLS_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_TARBALLS_DIR}"
+
+CT_DoLog EXTRA "CT_COMMON_SRC_DIR ${CT_COMMON_SRC_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_COMMON_SRC_DIR}"
+
+CT_DoLog EXTRA "CT_SRC_DIR ${CT_SRC_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_SRC_DIR}"
+
+CT_DoLog EXTRA "CT_BUILD_DIR ${CT_BUILD_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_BUILD_DIR}"
+
+CT_DoLog EXTRA "CT_BUILDTOOLS_PREFIX_DIR ${CT_BUILDTOOLS_PREFIX_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_BUILDTOOLS_PREFIX_DIR}/bin"
+
+CT_DoLog EXTRA "CT_PREFIX_DIR ${CT_PREFIX_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}"
+
+CT_DoLog EXTRA "CT_HOST_COMPLIBS_DIR ${CT_HOST_COMPLIBS_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_HOST_COMPLIBS_DIR}"
+
+Добавить в конфиг .config  - CT_BUILD_DIR

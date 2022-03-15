@@ -1,0 +1,131 @@
+#!bin/sh
+#$1 - searched var name (part)
+#$2 - fit parts mtd(2)
+#$3 - root parts mtd(3)
+#$4 - rw part mtd(4)
+#$5 - ubi mount point
+
+NAME=$1
+RESULT=""
+FIT_PART=$2
+ROOT_PART=$3
+RW_PART=$4
+RW_MOUNTP=$5
+RW_FS=$6
+UBI_ROOT_PART=$7
+UBI_DEV=2
+
+UPDATE_PATH=/www/pages/update
+UPDATE_FPATH=$UPDATE_PATH/firmware
+SW_DOWNLOAD=/www/pages/download
+UNDEL_FILE_LIST=/etc/necron/undelete.set
+CNODA_PATH=/www/pages/necron/Cnoda
+
+function do_clean {
+   rm -Rdf $UPDATE_PATH/*
+   echo Clean $UPDATE_PATH"/*"
+   rm -Rdf $SW_DOWNLOAD/*
+   echo Clean $SW_DOWNLOAD"/*"
+   sync
+   $CNODA_PATH/setclean $CNODA_PATH/Cnoda.json $UNDEL_FILE_LIST
+}
+
+function do_update {
+ ROOT_OFFSET=2048
+ BS=8192
+ echo "Erase user fit parts"
+ flash_erase /dev/mtd$FIT_PART 0 0
+ echo "Erase user rootfs parts"
+ flash_erase /dev/mtd$ROOT_PART 0 0
+
+ UPDATESIZE=$(stat -c '%s' $UPDATE_FPATH);
+ FITSIZE=16777216
+ ROOTSIZE=0
+ let "ROOTSIZE=(UPDATESIZE-FITSIZE)"
+ echo Rootfs filesize $ROOTSIZE
+
+ ubiformat -y /dev/mtd$ROOT_PART
+ ubiattach /dev/ubi_ctrl -m $ROOT_PART;
+ ubimkvol /dev/ubi$UBI_DEV -N mtd$ROOT_PART -m
+ sleep 1
+ #cp $UPDATE_FPATH /dev/mtd$UBI_ROOT_PART
+ dd if=$UPDATE_FPATH of=/dev/mtd$UBI_ROOT_PART skip=$ROOT_OFFSET bs=$BS
+ echo "Rootfs writed"
+
+ MD5ROOT=$(dd if=/dev/mtd$UBI_ROOT_PART bs=$ROOTSIZE count=1|md5sum|cut -d ' ' -f 1)
+ sleep 1
+ ubidetach -m $ROOT_PART;
+
+ echo Calc MD5 write data $MD5ROOT
+ MDFILE=$UPDATE_PATH/$MD5ROOT
+ echo Search MD5 sum file $MDFILE
+ if [ -f "$MDFILE" ]
+   then
+    echo Searched MD5
+    #dd if=$UPDATE_FPATH of=/dev/mtd$FIT_PART count=$ROOT_OFFSET bs=$BS
+    dd if=$UPDATE_FPATH bs=16M | nandwrite /dev/mtd$FIT_PART -p
+    #nandwrite /dev/mtd$FIT_PART $UPDATE_FPATH -p
+    echo "Fit image updated"
+    echo "Erase rw parts"
+    #umount -f $RW_MOUNTP
+    #if [ "$RW_FS" == "ubi" ]; then
+    #  ubidetach -m $RW_PART
+    #fi
+
+    #flash_erase /dev/mtd$RW_PART 0 0
+    echo "Update success"
+    do_clean ""
+    reboot
+   else
+    echo "Update fault, not found MD5 sum file"
+    echo "Erase user rootfs parts"
+    flash_erase /dev/mtd$ROOT_PART 0 0
+    do_clean ""
+
+ fi
+ rm $UPDATE_PATH/*
+ rm $SW_DOWNLOAD/*
+}
+
+function update {
+  MD5FW=$(cat $UPDATE_FPATH|md5sum|cut -d ' ' -f 1)
+  MDFILE=$UPDATE_PATH/$MD5FW
+  if [ -f "$MDFILE" ]
+   then
+    echo MD5 ok, found $MDFILE
+    do_update ""
+  else
+    echo update is broken, not found finger $MD5FW
+    do_clean ""
+  fi 
+}
+
+set -- $(cat /proc/cmdline)
+#set -- $(cat /cmdline)
+for x in "$@"; do
+    case "$x" in
+        $NAME=*)
+        RESULT="${x#"$NAME"=}"
+        echo Load $RESULT part 
+        ;;
+    esac
+done
+
+if [ "0" -eq "$RESULT" ]
+then
+ echo Started factory image
+ echo Check for update $UPDATE_FPATH
+ if [ -f "$UPDATE_FPATH" ]
+ then
+    update ""
+ else
+  echo "Update not found"
+ fi
+else
+  if [ "1" -eq "$RESULT" ]
+        then
+         echo Started user image
+  else
+    echo Started undefined image
+  fi 
+fi

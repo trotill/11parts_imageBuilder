@@ -1,0 +1,33 @@
+SDK сборка
+
+pacman-key --init
+pacman-key --populate archlinuxarm
+pacman -Syu --noconfirm --needed
+pacman -S git autoconf npm nodejs cpio yarn automake grep base-devel asciidoc xmlto unzip help2man wget ncurses rsync doxygen mariadb-libs postgresql-libs libcap pam hiredis --noconfirm --needed
+echo "nobody "
+cd /opt
+git clone https://aur.archlinux.org/libmodbus-dev.git
+git clone https://aur.archlinux.org/paho-mqtt-c-git.git
+git clone https://aur.archlinux.org/proftpd.git
+git clone https://aur.archlinux.org/libmatchbox.git
+git clone https://aur.archlinux.org/matchbox-window-manager.git
+chown nobody.nobody /opt -R
+cd libmodbus-dev
+sudo -u nobody makepkg -sr
+cd ../paho-mqtt-c-git
+sudo -u nobody makepkg -sr
+cd ../proftpd
+добавить в PKGBUILD, в arch платформу armv7h или aarch64
+sudo -u nobody makepkg -sr
+
+cd ../libmatchbox
+добавить в PKGBUILD, в arch платформу armv7h или aarch64
+sudo -u nobody makepkg -sri
+
+cd ../matchbox-window-manager
+добавить в PKGBUILD, в arch платформу armv7h или aarch64
+sudo -u nobody makepkg -sr
+
+все пакеты AUR готовы, далее можно их вытащить из образа и скопировать в цел. сборку /opt/additions/
+sudo npm install -g --unsafe-perm=true --allow-root serialport-gsm
+перенести /usr/lib/node_modules/serialport-gsm в target

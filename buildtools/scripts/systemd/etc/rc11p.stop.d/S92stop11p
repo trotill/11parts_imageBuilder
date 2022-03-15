@@ -1,0 +1,5 @@
+#!/bin/sh
+
+while killall node 2>/dev/null; do sleep 1; done
+while killall -9 svc 2>/dev/null; do sleep 1; done
+while killall -9 safe_logger 2>/dev/null; do sleep 1; done

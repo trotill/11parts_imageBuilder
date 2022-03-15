@@ -1,0 +1,9 @@
+
+
+SUBSYSTEM!="usb", GOTO="iot_end"
+
+ACTION=="add", RUN+="srviot_events.sh usb %E{SUBSYSTEM}add %b:%k %E{ID_VENDOR_ID} %E{ID_MODEL_ID}"
+ACTION=="change", RUN+="srviot_events.sh usb %E{SUBSYSTEM}change %b:%k %E{ID_VENDOR_ID} %E{ID_MODEL_ID}"
+ACTION=="remove", RUN+="srviot_events.sh usb %E{SUBSYSTEM}remove %b:%k %E{ID_VENDOR_ID} %E{ID_MODEL_ID}"
+
+LABEL="iot_end"

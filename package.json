@@ -1,0 +1,24 @@
+{
+  "name": "buildtool_v2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node buildtools/scripts/ncAll.js",
+    "image": "node buildtools/scripts/ncMakeImages.js",
+    "deploy": "node buildtools/scripts/ncDeploy.js",
+    "patching": "node buildtools/scripts/ncPatching.js",
+    "repo": "node buildtools/scripts/ncSyncRepo.js",
+    "kernel": "node buildtools/scripts/ncKern.js",
+    "modules": "node buildtools/scripts/ncModules.js",
+    "archconf": "node buildtools/scripts/archconf.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@bitbucket.org/develinux1/buildtool.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "homepage": "https://bitbucket.org/develinux1/buildtool#readme"
+}

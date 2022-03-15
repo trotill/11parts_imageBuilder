@@ -1,0 +1,95 @@
+setenv bootargs ''
+setenv rootfs /e100loc/project/imx6ull/project/necron/images/master/ls1088/debug_nfs/rootfs
+
+ a_script=0x80800000
+ a_zImage=0xa0000000
+ a_Image=0xb0000000
+ a_fdt=0x80200000
+ 
+ a_MC=0x80000000 
+ ##//max len 1M (0x100000)
+ a_MC_DPL=0x80100000
+ a_MC_DPC=0x80200000
+ mc_name=MC
+ dpl_name=DPL
+ dpc_name=DPC
+ image_name=Image.gz
+ #Image.gz
+#//fsl_mc start mc 0x80000000 0x80100000
+#//fsl_mc apply dpl 0x80200000
+
+#if itest.s x == x${mcinitcmd} ; then
+   
+#fi
+
+
+echo nfs ${a_MC} ${serverip}:${rootfs}/boot/${mc_name}
+if nfs ${a_MC} ${serverip}:${rootfs}/boot/${mc_name} ; then
+	echo Loading DPAA2 MC ${serverip}:${rootfs}/boot/${mc_name}
+else
+	echo "!!!! Error loading DPAA2 MC ${serverip}:${rootfs}/boot/${mc_name}";
+	exit;
+fi
+
+if nfs ${a_MC_DPL} ${serverip}:${rootfs}/boot/${dpl_name}; then
+	echo Loading DPAA2 DPL ${serverip}:${rootfs}/boot/${dpl_name}
+else
+	echo "!!!! Error loading DPAA2 DPL ${serverip}:${rootfs}/boot/${dpl_name}";
+	exit;
+fi
+
+if nfs ${a_MC_DPC} ${serverip}:${rootfs}/boot/${dpc_name} ; then
+	echo Loading DPAA2 DPC ${serverip}:${rootfs}/boot/${dpc_name}
+else
+	echo "!!!! Error loading DPAA2 DPC ${serverip}:${rootfs}/boot/${dpc_name}";
+	exit;
+fi
+
+#echo "Start DPAA2 MC"
+#fsl_mc start mc $a_MC $a_MC_DPC
+
+#echo "Apply DPAA2 MC"
+#fsl_mc apply dpl $a_MC_DPL
+
+ setenv console ttyS0
+
+dtbname=fsl-ls1088a-rdb.dtb
+if itest.s "x" == "x${dtbname}" ; then
+	echo Run setenv dtbname <dtb filename>;
+	exit;
+fi
+
+
+if itest.s x == x${bootdir} ; then
+	bootdir=/
+fi
+
+if itest.s x${bootpart} == x ; then
+	bootpart=1
+fi
+
+if nfs ${a_fdt} ${serverip}:${rootfs}/boot/${dtbname} ; then
+	echo Loading DTB ${serverip}:${rootfs}/boot/${dtbname}
+	fdt addr ${a_fdt}
+	setenv fdt_high 0xffffffff
+else
+	echo "!!!! Error loading ${serverip}:${rootfs}/boot/${dtbname}";
+	exit;
+fi
+
+fdt resize
+
+setenv bootargs "${bootargs} console=${console},115200 earlycon=uart8250,mmio,0x21c0500 consoleblank=0 default_hugepagesz=2m hugepagesz=2m hugepages=256 rootwait fixrtc"
+setenv bootargs "${bootargs} ip=${ipaddr}:${serverip}:::bs:eth0:off rw root=/dev/nfs nfsroot=${rootfs} no_console_suspend"
+setenv bootargs "${bootargs} rw ${mtdparts} private=${private}"
+
+echo "Load over NFS/GIV"
+
+ if nfs ${a_zImage} ${serverip}:${rootfs}/boot/${image_name} ; then
+    echo "Boot image, bootargs=$bootargs"
+	unzip ${a_zImage} ${a_Image}
+
+	booti ${a_Image} - ${a_fdt}
+else
+    echo "Error loading kernel image";
+fi

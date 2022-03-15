@@ -1,0 +1,447 @@
+diff --git a/board/freescale/common/qixis.h b/board/freescale/common/qixis.h
+index 0aa56a0..50d975d 100644
+--- a/board/freescale/common/qixis.h
++++ b/board/freescale/common/qixis.h
+@@ -100,6 +100,7 @@ u8 qixis_read_i2c(unsigned int reg);
+ void qixis_write_i2c(unsigned int reg, u8 value);
+ #endif
+ 
++#ifndef SPL_NO_QIXIS
+ #if defined(CONFIG_QIXIS_I2C_ACCESS) && defined(CONFIG_SYS_I2C_FPGA_ADDR)
+ #define QIXIS_READ(reg) qixis_read_i2c(offsetof(struct qixis, reg))
+ #define QIXIS_WRITE(reg, value) \
+@@ -114,6 +115,10 @@ void qixis_write_i2c(unsigned int reg, u8 value);
+ #define QIXIS_WRITE_I2C(reg, value) \
+ 			qixis_write_i2c(offsetof(struct qixis, reg), value)
+ #endif
++#else
++	#define QIXIS_READ(reg) 0
++	#define QIXIS_WRITE(reg, value) 0
++#endif
+ 
+ /* Use for SDHC adapter card type identification and operation */
+ #ifdef CONFIG_FSL_ESDHC_ADAPTER_IDENT
+diff --git a/board/freescale/ls1088a/ddr.c b/board/freescale/ls1088a/ddr.c
+index bbab3a8..2fe2827 100644
+--- a/board/freescale/ls1088a/ddr.c
++++ b/board/freescale/ls1088a/ddr.c
+@@ -39,6 +39,7 @@ void fsl_ddr_board_options(memctl_options_t *popts,
+ 	ddr_freq = get_ddr_freq(0) / 1000000;
+ 	while (pbsp->datarate_mhz_high) {
+ 		if (pbsp->n_ranks == pdimm->n_ranks) {
++			pbsp_highest=pbsp;
+ 			if (ddr_freq <= pbsp->datarate_mhz_high) {
+ 				popts->clk_adjust = pbsp->clk_adjust;
+ 				popts->wrlvl_start = pbsp->wrlvl_start;
+@@ -46,7 +47,6 @@ void fsl_ddr_board_options(memctl_options_t *popts,
+ 				popts->wrlvl_ctl_3 = pbsp->wrlvl_ctl_3;
+ 				goto found;
+ 			}
+-			pbsp_highest = pbsp;
+ 		}
+ 		pbsp++;
+ 	}
+@@ -58,17 +58,17 @@ void fsl_ddr_board_options(memctl_options_t *popts,
+ 		       pbsp_highest->datarate_mhz_high);
+ 		popts->clk_adjust = pbsp_highest->clk_adjust;
+ 		popts->wrlvl_start = pbsp_highest->wrlvl_start;
+-		popts->wrlvl_ctl_2 = pbsp->wrlvl_ctl_2;
+-		popts->wrlvl_ctl_3 = pbsp->wrlvl_ctl_3;
++		popts->wrlvl_ctl_2 = pbsp_highest->wrlvl_ctl_2;
++		popts->wrlvl_ctl_3 = pbsp_highest->wrlvl_ctl_3;
+ 	} else {
+ 		panic("DIMM is not supported by this board");
+ 	}
+ found:
+ 	debug("Found timing match: n_ranks %d, data rate %d, rank_gb %d\n"
+ 		"\tclk_adjust %d, wrlvl_start %d, wrlvl_ctrl_2 0x%x, wrlvl_ctrl_3 0x%x\n",
+-		pbsp->n_ranks, pbsp->datarate_mhz_high, pbsp->rank_gb,
+-		pbsp->clk_adjust, pbsp->wrlvl_start, pbsp->wrlvl_ctl_2,
+-		pbsp->wrlvl_ctl_3);
++		pbsp_highest->n_ranks, pbsp_highest->datarate_mhz_high, pbsp_highest->rank_gb,
++		popts->clk_adjust, popts->wrlvl_start, popts->wrlvl_ctl_2,
++		popts->wrlvl_ctl_3);
+ 
+ 
+ 
+diff --git a/board/freescale/ls1088a/ddr.h b/board/freescale/ls1088a/ddr.h
+index a1ad709..4da43a3 100644
+--- a/board/freescale/ls1088a/ddr.h
++++ b/board/freescale/ls1088a/ddr.h
+@@ -29,7 +29,8 @@ static const struct board_specific_parameters udimm0[] = {
+ 	 * ranks| mhz| GB  |adjst| start |   ctl2    |  ctl3
+ 	 */
+ #if defined(CONFIG_TARGET_LS1088ARDB)
+-
++	//{1,  1666, 0, 8,     9, 0x0A0C0E11, 0x1214160F,},
++	{1,  2300, 0, 8,     9, 0x0A0C0E11, 0x1214160F,},
+ 	{2,  1666, 0, 8,     8, 0x090A0B0E, 0x0F10110D,},
+ 	{2,  1900, 0, 4,     7, 0x09090B0D, 0x0E10120B,},
+ 	{2,  2300, 0, 8,     9, 0x0A0C0E11, 0x1214160F,},
+diff --git a/board/freescale/ls1088a/eth_ls1088ardb.c b/board/freescale/ls1088a/eth_ls1088ardb.c
+index 97accc9..4e548d1 100644
+--- a/board/freescale/ls1088a/eth_ls1088ardb.c
++++ b/board/freescale/ls1088a/eth_ls1088ardb.c
+@@ -58,8 +58,8 @@ int board_eth_init(bd_t *bis)
+ 		 * a MAC has no PHY address, we give a PHY address to XFI
+ 		 * MAC error.
+ 		 */
+-		wriop_set_phy_address(WRIOP1_DPMAC1, 0x0a);
+-		wriop_set_phy_address(WRIOP1_DPMAC2, AQ_PHY_ADDR1);
++		/*wriop_set_phy_address(WRIOP1_DPMAC1, 0x0a);*/
++		/*wriop_set_phy_address(WRIOP1_DPMAC2, AQ_PHY_ADDR1);*/
+ 		wriop_set_phy_address(WRIOP1_DPMAC3, QSGMII1_PORT1_PHY_ADDR);
+ 		wriop_set_phy_address(WRIOP1_DPMAC4, QSGMII1_PORT2_PHY_ADDR);
+ 		wriop_set_phy_address(WRIOP1_DPMAC5, QSGMII1_PORT3_PHY_ADDR);
+diff --git a/board/freescale/ls1088a/ls1088a.c b/board/freescale/ls1088a/ls1088a.c
+index b03028b..17f1be5 100644
+--- a/board/freescale/ls1088a/ls1088a.c
++++ b/board/freescale/ls1088a/ls1088a.c
+@@ -455,12 +455,14 @@ int board_init(void)
+ 	gd->env_addr = (ulong)&default_environment[0];
+ #endif
+ 
++#if 0
+ #if defined(CONFIG_TARGET_LS1088ARDB) && defined(CONFIG_FSL_MC_ENET)
+ 	/* invert AQR105 IRQ pins polarity */
+ 	out_le32(irq_ccsr + IRQCR_OFFSET / 4, AQR105_IRQ_MASK);
+ #endif
+ 	if (adjust_vdd(0) < 0)
+ 		printf("core voltage not adjusted\n");
++#endif
+ 
+ #ifdef CONFIG_FSL_CAAM
+ 	sec_init();
+diff --git a/drivers/ddr/fsl/fsl_ddr_gen4.c b/drivers/ddr/fsl/fsl_ddr_gen4.c
+index 3349fc5..3dc19b4 100644
+--- a/drivers/ddr/fsl/fsl_ddr_gen4.c
++++ b/drivers/ddr/fsl/fsl_ddr_gen4.c
+@@ -294,6 +294,9 @@ step2:
+ 	 * we choose the max, that is 500 us for all of case.
+ 	 */
+ 	udelay(500);
++		//printf("GIV:SDRAM_CFG_MEM_EN\n");
++		printf("GIV:Pause 3sec\n");
++		mdelay(3000);
+ 	mb();
+ 	isb();
+ 
+diff --git a/drivers/ddr/fsl/lc_common_dimm_params.c b/drivers/ddr/fsl/lc_common_dimm_params.c
+index 850c8f6..9cfc226 100644
+--- a/drivers/ddr/fsl/lc_common_dimm_params.c
++++ b/drivers/ddr/fsl/lc_common_dimm_params.c
+@@ -64,6 +64,7 @@ compute_cas_latency(const unsigned int ctrl_num,
+ 		       caslat_actual);
+ 	}
+ 	outpdimm->lowest_common_spd_caslat = caslat_actual;
++
+ 	debug("lowest_common_spd_caslat is 0x%x\n", caslat_actual);
+ 
+ 	return 0;
+diff --git a/drivers/ddr/fsl/main.c b/drivers/ddr/fsl/main.c
+index d0a7b3f..0f5c06c 100644
+--- a/drivers/ddr/fsl/main.c
++++ b/drivers/ddr/fsl/main.c
+@@ -84,6 +84,26 @@ u8 spd_i2c_addr[CONFIG_SYS_NUM_DDR_CTLRS][CONFIG_DIMM_SLOTS_PER_CTLR] = {
+ #define SPD_SPA0_ADDRESS	0x36
+ #define SPD_SPA1_ADDRESS	0x37
+ 
++void show_hex_spd(generic_spd_eeprom_t *spd){
++	int n=0;
++	debug("show_hex_spd [");
++	uchar * buf=(uchar *)spd;
++	for (n=0;n<512;n++){
++		if (n>0)
++			debug(",");
++		debug("0x%02x",buf[n]);
++	}
++	debug("]\n");
++}
++
++void fake_hex_spd(generic_spd_eeprom_t *spd)
++{
++	debug("Fake HEX SPD\n");
++	uchar buf[]={0x23,0x11,0x0c,0x02,0x84,0x19,0x00,0x08,0x00,0x60,0x00,0x03,0x01,0x03,0x00,0x00,0x00,0x00,0x07,0x10,0xf8,0x7f,0x00,0x00,0x6e,0x6e,0x6e,0x11,0x00,0x6e,0x20,0x08,0x00,0x05,0x70,0x03,0x00,0xa8,0x1b,0x28,0x28,0x00,0x78,0x00,0x14,0x3c,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x16,0x36,0x16,0x36,0x16,0x36,0x16,0x36,0x00,0x00,0x16,0x36,0x16,0x36,0x16,0x36,0x16,0x36,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x9c,0xb5,0x00,0x00,0x00,0x00,0x9c,0xd6,0xa4,0xca,0x11,0x01,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x07,0x4a,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x85,0x9b,0x00,0x17,0x51,0xe0,0x9c,0xaf,0x82,0x43,0x54,0x34,0x47,0x34,0x44,0x46,0x53,0x38,0x32,0x34,0x41,0x2e,0x4d,0x38,0x46,0x42,0x00,0x00,0x00,0x00,0x80,0x2c,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
++	memcpy(spd,buf,sizeof(buf));
++
++}
++
+ static void __get_spd(generic_spd_eeprom_t *spd, u8 i2c_address)
+ {
+ 	int ret;
+@@ -130,6 +150,9 @@ static void __get_spd(generic_spd_eeprom_t *spd, u8 i2c_address)
+ 		}
+ 		memset(spd, 0, sizeof(generic_spd_eeprom_t));
+ 	}
++
++	show_hex_spd(spd);
++	//fake_hex_spd(spd);
+ }
+ 
+ __attribute__((weak, alias("__get_spd")))
+@@ -413,6 +436,103 @@ __attribute__((weak, alias("__step_assign_addresses")))
+ unsigned long long step_assign_addresses(fsl_ddr_info_t *pinfo,
+ 			  unsigned int dbw_cap_adj[]);
+ 
++
++void DDR4_DimmParamFakes(const dimm_params_t *params){
++/*
++	params->taa_ps=13750;
++	params->tckmax_ps=1900;
++	params->caslat_x=4193280;
++	params->trrds_ps=3300;
++	params->trrdl_ps=4900;
++	params->trrdl_ps=5000;
++	*/
++}
++
++void DDR4_DimmParamInfo(const dimm_params_t *params){
++	debug("DDR4_DimmParamInfo\n");
++
++	debug("mpart %s\n",params->mpart);
++	debug("n_ranks %u\n",params->n_ranks);
++	debug("rank_density %llu\n",params->rank_density);
++	debug("capacity %llu\n",params->capacity);
++	debug("data_width %u\n",params->data_width);
++	debug("primary_sdram_width %u\n",params->primary_sdram_width);
++	debug("ec_sdram_width %u\n",params->ec_sdram_width);
++	debug("registered_dimm %u\n",params->registered_dimm);
++	debug("device_width %u\n",params->device_width);
++	debug("n_row_addr %u\n",params->n_row_addr);
++	debug("n_col_addr %u\n",params->n_col_addr);
++	debug("edc_config %u\n",params->edc_config);
++	debug("bank_addr_bits %u\n",params->bank_addr_bits);
++	debug("bank_group_bits %u\n",params->bank_group_bits);
++	debug("burst_lengths_bitmask %u\n",params->burst_lengths_bitmask);
++	debug("row_density %u\n",params->row_density);
++	debug("base_address %lu\n",params->base_address);
++	debug("mirrored_dimm %u\n",params->mirrored_dimm);
++	debug("mtb_ps %u\n",params->mtb_ps);
++	debug("ftb_10th_ps %u\n",params->ftb_10th_ps);
++	debug("taa_ps %u\n",params->taa_ps);
++	debug("tfaw_ps %u\n",params->tfaw_ps);
++	debug("tckmin_x_ps %u\n",params->tckmin_x_ps);
++	debug("tckmin_x_minus_1_ps %u\n",params->tckmin_x_minus_1_ps);
++	debug("tckmin_x_minus_2_ps %u\n",params->tckmin_x_minus_2_ps);
++	debug("tckmax_ps %u\n",params->tckmax_ps);
++	debug("caslat_x %u\n",params->caslat_x);
++	debug("caslat_x_minus_1 %u\n",params->caslat_x_minus_1);
++	debug("caslat_x_minus_2 %u\n",params->caslat_x_minus_2);
++	debug("caslat_lowest_derated %u\n",params->caslat_lowest_derated);
++	debug("trcd_ps %u\n",params->trcd_ps);
++	debug("trp_ps %u\n",params->trp_ps);
++	debug("tras_ps %u\n",params->tras_ps);
++	debug("trfc1_ps %u\n",params->trfc1_ps);
++	debug("trfc2_ps %u\n",params->trfc2_ps);
++	debug("trfc4_ps %u\n",params->trfc4_ps);
++	debug("trrds_ps %u\n",params->trrds_ps);
++	debug("trrdl_ps %u\n",params->trrdl_ps);
++	debug("tccdl_ps %u\n",params->tccdl_ps);
++	debug("trc_ps %u\n",params->trc_ps);
++	debug("refresh_rate_ps %u\n",params->refresh_rate_ps);
++	debug("extended_op_srt %u\n",params->extended_op_srt);
++	debug("rcw %s\n",params->rcw);
++	debug("dq_mapping 0x%08x\n",params->dq_mapping);
++	debug("dq_mapping_ors 0x%08x\n",params->dq_mapping_ors);
++
++}
++
++void DDR4_TimingParamInfo(common_timing_params_t * param){
++
++	debug("DDR4_TimingParamInfo\n");
++	debug("additive_latency %d\n",param->additive_latency);
++	debug("all_dimms_burst_lengths_bitmask %d\n",param->all_dimms_burst_lengths_bitmask);
++	debug("all_dimms_ecc_capable %d\n",param->all_dimms_ecc_capable);
++	debug("all_dimms_registered %d\n",param->all_dimms_registered);
++	debug("all_dimms_unbuffered %d\n",param->all_dimms_unbuffered);
++	debug("base_address %d\n",param->base_address);
++	debug("extended_op_srt %d\n",param->extended_op_srt);
++	debug("highest_common_derated_caslat %d\n",param->highest_common_derated_caslat);
++	debug("lowest_common_spd_caslat %d\n",param->lowest_common_spd_caslat);
++	debug("ndimms_present %d\n",param->ndimms_present);
++	debug("rcw %s\n",param->rcw);
++	debug("refresh_rate_ps %d\n",param->refresh_rate_ps);
++	debug("taamin_ps %d\n",param->taamin_ps);
++	debug("tccdl_ps %d\n",param->tccdl_ps);
++	debug("tckmax_ps %d\n",param->tckmax_ps);
++	debug("tckmin_x_ps %d\n",param->tckmin_x_ps);
++	debug("total_mem %d\n",param->total_mem);
++	debug("tras_ps %d\n",param->tras_ps);
++	debug("trc_ps %d\n",param->trc_ps);
++
++	debug("trcd_ps %d\n",param->trcd_ps);
++	debug("trfc1_ps %d\n",param->trfc1_ps);
++	debug("trfc2_ps %d\n",param->trfc2_ps);
++	debug("trfc4_ps %d\n",param->trfc4_ps);
++	debug("trp_ps %d\n",param->trp_ps);
++	debug("trrdl_ps %d\n",param->trrdl_ps);
++	debug("trrds_ps %d\n",param->trrds_ps);
++	debug("twr_ps %d\n",param->twr_ps);
++
++}
++
+ unsigned long long
+ fsl_ddr_compute(fsl_ddr_info_t *pinfo, unsigned int start_step,
+ 				       unsigned int size_only)
+@@ -428,6 +548,7 @@ fsl_ddr_compute(fsl_ddr_info_t *pinfo, unsigned int start_step,
+ 
+ 	fsl_ddr_cfg_regs_t *ddr_reg = pinfo->fsl_ddr_config_reg;
+ 	common_timing_params_t *timing_params = pinfo->common_timing_params;
++
+ 	if (pinfo->board_need_mem_reset)
+ 		assert_reset = pinfo->board_need_mem_reset();
+ 
+@@ -516,11 +637,15 @@ fsl_ddr_compute(fsl_ddr_info_t *pinfo, unsigned int start_step,
+ 		for (i = first_ctrl; i <= last_ctrl; i++) {
+ 			debug("Computing lowest common DIMM"
+ 				" parameters for memctl=%u\n", i);
++
++			DDR4_DimmParamInfo(pinfo->dimm_params[i]);
+ 			compute_lowest_common_dimm_parameters
+ 				(i,
+ 				 pinfo->dimm_params[i],
+ 				 &timing_params[i],
+ 				 CONFIG_DIMM_SLOTS_PER_CTLR);
++
++			DDR4_TimingParamInfo(&timing_params[i]);
+ 		}
+ 
+ 	case STEP_GATHER_OPTS:
+diff --git a/drivers/mtd/spi/spi_flash_ids.c b/drivers/mtd/spi/spi_flash_ids.c
+index e45edeb..cd1e63a 100644
+--- a/drivers/mtd/spi/spi_flash_ids.c
++++ b/drivers/mtd/spi/spi_flash_ids.c
+@@ -146,6 +146,7 @@ const struct spi_flash_info spi_flash_ids[] = {
+ 	{"sst25wf040",	   INFO(0xbf2504, 0x0,	64 * 1024,     8, SECT_4K | SST_WR) },
+ 	{"sst25wf040b",	   INFO(0x621613, 0x0,	64 * 1024,     8, SECT_4K) },
+ 	{"sst25wf080",	   INFO(0xbf2505, 0x0,	64 * 1024,    16, SECT_4K | SST_WR) },
++	{"sst25wf080b",	   INFO(0x621614, 0x0,	64 * 1024,    16, SECT_4K | RD_FULL | WR_QPP) },
+ #endif
+ #ifdef CONFIG_SPI_FLASH_WINBOND		/* WINBOND */
+ 	{"w25p80",	   INFO(0xef2014, 0x0,	64 * 1024,    16, 0) },
+diff --git a/include/common.h b/include/common.h
+index 1a98512..5207b12 100644
+--- a/include/common.h
++++ b/include/common.h
+@@ -41,7 +41,7 @@ typedef volatile unsigned char	vu_char;
+ #ifdef __LP64__
+ #define CONFIG_SYS_SUPPORT_64BIT_DATA
+ #endif
+-
++//#define DEBUG
+ #ifdef DEBUG
+ #define _DEBUG	1
+ #else
+diff --git a/include/configs/ls1088ardb.h b/include/configs/ls1088ardb.h
+index 07fa5c5..f940299 100644
+--- a/include/configs/ls1088ardb.h
++++ b/include/configs/ls1088ardb.h
+@@ -9,11 +9,14 @@
+ 
+ #include "ls1088a_common.h"
+ 
++#define SPL_NO_QIXIS
+ #ifndef SPL_NO_BOARDINFO
+ #define CONFIG_DISPLAY_BOARDINFO_LATE
+ #endif
+ 
+ #define CONFIG_MISC_INIT_R
++#define CONFIG_CMD_UNZIP
++
+ 
+ #if defined(CONFIG_QSPI_BOOT)
+ #define CONFIG_ENV_IS_IN_SPI_FLASH
+@@ -54,8 +57,9 @@
+ #define CONFIG_SYS_MXC_I2C1_SPEED	40000000
+ #define CONFIG_SYS_MXC_I2C2_SPEED	40000000
+ #else
+-#define CONFIG_DDR_ECC
+-#define CONFIG_ECC_INIT_VIA_DDRCONTROLLER
++/*#define CONFIG_DDR_ECC
++#define CONFIG_ECC_INIT_VIA_DDRCONTROLLER*/
++
+ #define CONFIG_MEM_INIT_VALUE		0xdeadbeef
+ #endif
+ #define SPD_EEPROM_ADDRESS	0x51
+@@ -290,12 +294,15 @@
+ 
+ #ifndef SPL_NO_QSPI
+ /* QSPI device */
+-#if defined(CONFIG_QSPI_BOOT) || defined(CONFIG_SD_BOOT_QSPI)
++/*#if defined(CONFIG_QSPI_BOOT) || defined(CONFIG_SD_BOOT_QSPI)*/
+ #define CONFIG_FSL_QSPI
++
++#define CONFIG_SPI_FLASH_SST
++/*#define FSL_QSPI_FLASH_SIZE		SZ_1M*/
+ #define CONFIG_SPI_FLASH_SPANSION
+-#define FSL_QSPI_FLASH_SIZE		(1 << 26)
++#define FSL_QSPI_FLASH_SIZE		SZ_64M
+ #define FSL_QSPI_FLASH_NUM		2
+-#endif
++/*#endif*/
+ #endif
+ 
+ #define CONFIG_CMD_MEMINFO
+@@ -339,7 +346,12 @@
+ #undef CONFIG_EXTRA_ENV_SETTINGS
+ #define CONFIG_EXTRA_ENV_SETTINGS		\
+ 	"BOARD=ls1088ardb\0"	\
++	"ipaddr=192.168.0.229\0"	\
++	"sereverip=192.168.0.126\0"	\
++	"usbethaddr=40:11:86:8E:2B:86\0"	\
++	"11p=mmc dev 0;fatload mmc 0 a0000000 6x_bootscript;source a0000000\0"		\
+ 	"hwconfig=fsl_ddr:bank_intlv=auto\0"	\
++	"upgradeu=mmc dev 0;fatload mmc 0 a0000000 6x_upgrade;source a0000000\0"		\
+ 	"ramdisk_addr=0x800000\0"		\
+ 	"ramdisk_size=0x2000000\0"		\
+ 	"fdt_high=0xa0000000\0"			\
+@@ -360,7 +372,7 @@
+ 	"fdt_addr_r=0x90000000\0"		\
+ 	"load_addr=0xa0000000\0"		\
+ 	"kernel_size=0x2800000\0"		\
+-	"kernel_size_sd=0x14000\0"		\
++	"kernel_size_sd=0x18000\0"		\
+ 	"kernelhdr_size_sd=0x10\0"		\
+ 	MC_INIT_CMD				\
+ 	BOOTENV					\
+@@ -441,9 +453,9 @@
+ #define CONFIG_PHYLIB
+ 
+ #define CONFIG_PHY_VITESSE
+-#define CONFIG_PHY_AQUANTIA
++/*#define CONFIG_PHY_AQUANTIA
+ #define AQ_PHY_ADDR1			0x00
+-#define AQR105_IRQ_MASK			0x00000004
++#define AQR105_IRQ_MASK			0x00000004*/
+ 
+ #define QSGMII1_PORT1_PHY_ADDR		0x0c
+ #define QSGMII1_PORT2_PHY_ADDR		0x0d
+@@ -455,16 +467,26 @@
+ #define QSGMII2_PORT4_PHY_ADDR		0x1f
+ 
+ #define CONFIG_MII
+-#define CONFIG_ETHPRIME		"DPMAC1@xgmii"
++#define CONFIG_ETHPRIME		"DPMAC7@qsgmii"
+ #define CONFIG_PHY_GIGE
+ #endif
+ #endif
+ 
+ /*  USB  */
+-#define CONFIG_HAS_FSL_XHCI_USB
++/*#define CONFIG_HAS_FSL_XHCI_USB*/
+ #define CONFIG_USB_XHCI_FSL
+ #define CONFIG_USB_MAX_CONTROLLER_COUNT		2
+ 
++#define CONFIG_USB_ETHER
++#define CONFIG_USB_ETH_CDC
++
++#define CONFIG_USB_HOST_ETHER
++#define CONFIG_USB_ETHER_ASIX
++#define CONFIG_USB_ETHER_MCS7830
++#define CONFIG_USB_ETHER_SMSC95XX
++#define CONFIG_EHCI_HCD_INIT_AFTER_RESET	/* For OTG port */
++/*#define CONFIG_SYS_USB_EVENT_POLL_VIA_CONTROL_EP*/
++
+ /* SATA */
+ #define CONFIG_LIBATA
+ #define CONFIG_SCSI_AHCI
